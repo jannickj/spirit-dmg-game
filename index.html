@@ -32,6 +32,7 @@
         <input type="number" id="answer">
         <button id="submit">Submit</button>
     </div>
+    <button id="next" class="hidden">Next Round</button>
     <button id="start">Start Game</button>
 </div>
 
@@ -51,7 +52,7 @@ let times = [];
 let correct = [];
 let total = 10;
 let currentRound = 0;
-let state, startTime, timerInterval;
+let state, startTime, timerInterval, running;
 
 function getRandomInt(min, max) {
     min = Math.ceil(min);
@@ -157,8 +158,9 @@ function startGame() {
     document.getElementById("correct").innerHTML = "";
     document.getElementById("time").innerHTML = "";
     document.getElementById("points").innerHTML = "";
-    document.getElementById("start").disabled = true;
+    document.getElementById("start").classList.add("hidden");
     document.getElementById("answer-section").classList.remove("hidden");
+    document.getElementById("next").classList.remove("hidden");
     nextRound();
 }
 
@@ -171,13 +173,16 @@ function nextRound() {
     document.getElementById("round").classList.remove("hidden");
     document.getElementById("timer").classList.remove("hidden");
     currentRound++;
-    document.getElementById("round").innerText = `Round: ${currentRound}`;
+    document.getElementById("round").innerText = `Round: ${currentRound} / ${total}`;
     state = genState();
     displayState(state);
     document.getElementById("answer").disabled = false;
     document.getElementById("submit").disabled = false;
+    document.getElementById("next").disabled = true;
+    document.getElementById("answer").focus(); // Set focus on the input field
     startTime = Date.now();
     timerInterval = setInterval(updateTimer, 10);
+    running = true;
 }
 
 function endGame() {
@@ -201,12 +206,17 @@ function endGame() {
 }
 
 function updateTimer() {
-    let elapsed = (Date.now() - startTime) / 1000;
-    document.getElementById("timer").innerText = `Time: ${elapsed.toFixed(3)} seconds`;
+    if (running) {
+        let elapsed = (Date.now() - startTime) / 1000;
+        document.getElementById("timer").innerText = `Time: ${elapsed.toFixed(3)} seconds`;
+    }
 }
 
+
 document.getElementById("submit").addEventListener("click", () => {
+    // console.log("cool", timerInterval)
     clearInterval(timerInterval);
+    running = false;
     let endTime = Date.now();
     let ans = parseInt(document.getElementById("answer").value);
     let dmg = calcDamage(state);
@@ -214,6 +224,7 @@ document.getElementById("submit").addEventListener("click", () => {
 
     document.getElementById("answer").disabled = true;
     document.getElementById("submit").disabled = true;
+    document.getElementById("next").disabled = false;
 
     if (ans === dmg) {
         document.getElementById("result").innerText = "Correct!";
@@ -224,10 +235,33 @@ document.getElementById("submit").addEventListener("click", () => {
     }
     document.getElementById("result").classList.remove("hidden");
     document.getElementById("answer").value = "";
-    setTimeout(nextRound, 2000);
+    document.getElementById("next").focus();
 });
 
+document.getElementById("next").addEventListener("click", () => {
+    if (!running) {
+        nextRound();
+    }
+})
+
 document.getElementById("start").addEventListener("click", startGame);
+document.getElementById("start").focus();
+
+document.getElementById("answer").addEventListener("keypress", (event) => {
+    if (event.key === "Enter") {
+        document.getElementById("submit").click();
+    }
+});
+document.getElementById("next").addEventListener("keypress", (event) => {
+    if (event.key === "Enter") {
+        document.getElementById("next").click();
+    }
+});
+document.getElementById("start").addEventListener("keypress", (event) => {
+    if (event.key === "Enter") {
+        document.getElementById("start").click();
+    }
+});
 </script>
 
 </body>
