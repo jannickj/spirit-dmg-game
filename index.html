@@ -135,7 +135,7 @@ function displayState(state) {
         }
         if (idx in state.levels) {
             let level = state.levels[idx];
-            extra += ` (level: ${level})`;
+            extra += ` (activations: ${level})`;
         }
         boardDiv.innerHTML += `<p>${c}${extra}</p>`;
     });
