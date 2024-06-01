@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Creature Damage Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Creature Damage Game</h1>
+<div id="game">
+    <div id="intro">Welcome to the Creature Damage Game! Press "Start Game" to begin.</div>
+    <div id="round" class="hidden">Round: 1</div>
+    <div id="timer" class="hidden">Time: 0.000 seconds</div>
+    <div id="board"></div>
+    <div id="played"></div>
+    <div id="result" class="hidden"></div>
+    <div id="correct"></div>
+    <div id="time"></div>
+    <div id="points"></div>
+    <div id="answer-section" class="hidden">
+        <label for="answer">Enter damage:</label>
+        <input type="number" id="answer">
+        <button id="submit">Submit</button>
+    </div>
+    <button id="start">Start Game</button>
+</div>
+
+<script>
+const CREATURE = {
+    "wanderer": { 'p': 1, 't': 1 },
+    "shackle": { 'p': 2, 't': 2 },
+    "supreme": { 'p': 1, 't': 3 },
+    "sailor": { 'p': 1, 't': 1 },
+    "rattle": { 'p': 2, 't': 1 },
+    "ascendant": { 'p': 1, 't': 1 },
+    "borrower": { 'p': 3, 't': 1 },
+    "faceless": { 'p': 4, 't': 3 }
+};
+
+let times = [];
+let correct = [];
+let total = 10;
+let currentRound = 0;
+let state, startTime, timerInterval;
+
+function getRandomInt(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function genState() {
+    let creatures = Object.keys(CREATURE);
+    let board = [];
+    let played = [];
+    let obsession = [];
+    let levels = {};
+
+    for (let i = 0; i < getRandomInt(2, 5); i++) {
+        let creature = creatures[getRandomInt(0, creatures.length - 1)];
+        board.push(creature);
+        let creatureIdx = board.length - 1;
+        if (creature === "ascendant") {
+            levels[creatureIdx] = getRandomInt(0, 2);
+        }
+    }
+
+    for (let i = 0; i < getRandomInt(0, 2); i++) {
+        let creature = creatures[getRandomInt(0, creatures.length - 1)];
+        played.push(creature);
+    }
+
+    for (let i = 0; i < getRandomInt(0, 2); i++) {
+        let creatureIdx = getRandomInt(0, board.length - 1);
+        obsession.push(creatureIdx);
+    }
+
+    return {
+        'board': board,
+        'played': played,
+        'obsession': obsession,
+        'levels': levels
+    };
+}
+
+function calcDamage(state) {
+    let lord = state.board.concat(state.played).filter(x => x === "supreme").length;
+    let playedSpirits = state.played.filter(x => x !== "faceless" && x !== "borrower").length;
+
+    let dmg = 0;
+    state.board.forEach((creature, idx) => {
+        let p = CREATURE[creature]['p'];
+        dmg += state.obsession.filter(x => idx === x).length;
+        if (creature === "wanderer") {
+            dmg += playedSpirits;
+        }
+        if (lord > 0 && creature !== "borrower") {
+            let isLord = creature === "supreme" ? 1 : 0;
+            dmg += lord - isLord;
+        }
+        if (idx in state.levels) {
+            let level = state.levels[idx];
+            if (level >= 2) {
+                p = 4;
+            } else if (level >= 1) {
+                p = 2;
+            }
+        }
+        dmg += p;
+    });
+    return dmg;
+}
+
+function displayState(state) {
+    const boardDiv = document.getElementById("board");
+    const playedDiv = document.getElementById("played");
+
+    boardDiv.innerHTML = "<h2>Board</h2>";
+    state.board.forEach((c, idx) => {
+        let extra = "";
+        let obs = state.obsession.filter(x => idx === x).length;
+        if (obs > 0) {
+            extra += ` (with ${obs}x obsession)`;
+        }
+        if (idx in state.levels) {
+            let level = state.levels[idx];
+            extra += ` (level: ${level})`;
+        }
+        boardDiv.innerHTML += `<p>${c}${extra}</p>`;
+    });
+
+    if (state.played.length > 0) {
+        playedDiv.innerHTML = "<h2>Played</h2>";
+        state.played.forEach(c => {
+            playedDiv.innerHTML += `<p>${c}</p>`;
+        });
+    } else {
+        playedDiv.innerHTML = "";
+    }
+}
+
+function startGame() {
+    times = [];
+    correct = [];
+    currentRound = 0;
+    document.getElementById("intro").classList.add("hidden");
+    document.getElementById("correct").innerHTML = "";
+    document.getElementById("time").innerHTML = "";
+    document.getElementById("points").innerHTML = "";
+    document.getElementById("start").disabled = true;
+    document.getElementById("answer-section").classList.remove("hidden");
+    nextRound();
+}
+
+function nextRound() {
+    if (currentRound >= total) {
+        endGame();
+        return;
+    }
+    document.getElementById("result").classList.add("hidden");
+    document.getElementById("round").classList.remove("hidden");
+    document.getElementById("timer").classList.remove("hidden");
+    currentRound++;
+    document.getElementById("round").innerText = `Round: ${currentRound}`;
+    state = genState();
+    displayState(state);
+    document.getElementById("answer").disabled = false;
+    document.getElementById("submit").disabled = false;
+    startTime = Date.now();
+    timerInterval = setInterval(updateTimer, 10);
+}
+
+function endGame() {
+    clearInterval(timerInterval);
+    document.getElementById("timer").classList.add("hidden");
+    let correctPercentage = (correct.filter(x => x).length / total) * 100;
+    let avgTime = times.reduce((a, b) => a + b, 0) / times.length;
+    let points = correct.reduce((acc, c, idx) => {
+        if (!c) return acc;
+        let p = 100 / (2 ** (times[idx] - 1));
+        return acc + p;
+    }, 0);
+    points = points / total;
+
+    document.getElementById("correct").innerText = `Correct: ${correctPercentage.toFixed(2)}%`;
+    document.getElementById("time").innerText = `Average time: ${avgTime.toFixed(2)} seconds`;
+    document.getElementById("points").innerText = `Points: ${points.toFixed(4)} points`;
+    document.getElementById("start").disabled = false;
+    document.getElementById("answer-section").classList.add("hidden");
+    document.getElementById("round").classList.add("hidden");
+}
+
+function updateTimer() {
+    let elapsed = (Date.now() - startTime) / 1000;
+    document.getElementById("timer").innerText = `Time: ${elapsed.toFixed(3)} seconds`;
+}
+
+document.getElementById("submit").addEventListener("click", () => {
+    clearInterval(timerInterval);
+    let endTime = Date.now();
+    let ans = parseInt(document.getElementById("answer").value);
+    let dmg = calcDamage(state);
+    times.push((endTime - startTime) / 1000);
+
+    document.getElementById("answer").disabled = true;
+    document.getElementById("submit").disabled = true;
+
+    if (ans === dmg) {
+        document.getElementById("result").innerText = "Correct!";
+        correct.push(true);
+    } else {
+        document.getElementById("result").innerText = `Incorrect! The correct damage was: ${dmg}`;
+        correct.push(false);
+    }
+    document.getElementById("result").classList.remove("hidden");
+    document.getElementById("answer").value = "";
+    setTimeout(nextRound, 2000);
+});
+
+document.getElementById("start").addEventListener("click", startGame);
+</script>
+
+</body>
+</html>
